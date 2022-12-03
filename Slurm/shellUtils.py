@@ -91,11 +91,12 @@ def make_command(
     params1_dict: Dict = {},
     params2_dict: Dict = {},
     stdout_redirect: str = "",
+    connection="=",
 ):
     command = [
         head,
-        *[f"-{key}={val}" for key, val in params1_dict.items()],
-        *[f"--{key}={val}" for key, val in params2_dict.items()],
+        *[f"-{key}{connection}{val}" for key, val in params1_dict.items()],
+        *[f"--{key}{connection}{val}" for key, val in params2_dict.items()],
         f">> {stdout_redirect}" if len(stdout_redirect) > 0 else "",
     ]
     return " ".join(command)
