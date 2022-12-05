@@ -12,6 +12,8 @@
 import json
 from pathlib import Path
 from typing import Dict, List, Union, Tuple
+import os
+import stat
 
 LICENSE_USAGE = {
     28: 70,
@@ -48,6 +50,8 @@ def make_shell_script(
     pre_set_content: List[str] = [],
     aliases: Dict[str, str] = {},
     paths: List[str] = [],
+    chmod: bool = True,
+    notifies: List[str] = ["FAIL"],
 ):
     cores = max(cores, 8)
     env_var_decls = []
@@ -63,7 +67,8 @@ def make_shell_script(
         f"#SBATCH --time={hours:02d}:{minutes:02d}:00",
         f"#SBATCH --account={account}",
         f"#SBATCH --output={sbatch_log_file}",
-        "#SBATCH --mail-type=FAIL",
+        f"#SBATCH --mail-type={','.join(notifies)}" if
+        (len(notifies) > 0) else "",
         f"#SBATCH --ntasks={cores}",
         *[f"#SBATCH -L {key}@osc:{val}" for key, val in license.items()],
         f"#SBATCH --gpus-per-node={gpus}" if gpus > 0 else "",
@@ -84,6 +89,9 @@ def make_shell_script(
 
     with open(script_path, 'w') as fout:
         fout.write("\n".join(shell_script_head + content + shell_script_tail))
+    if (chmod):
+        # os.system(f"chmod {chmod} {script_path}")
+        os.chmod(script_path, stat.S_IRWXU)
 
 
 def make_command(
