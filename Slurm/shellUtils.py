@@ -111,19 +111,19 @@ def make_command(
 
 
 def make_if_statement(
-    if_st: Tuple[(str, str)],
-    elif_sts: List[Tuple[(str, str)]] = [],
-    else_st: str = "",
+    if_st: Tuple[(str, List[str])],
+    elif_sts: List[Tuple[(str, List[str])]] = [],
+    else_st: List[str] = [],
 ):
 
     if_cond, if_act = if_st
-    terms = [f"if [ {if_cond} ]; then", if_act]
+    terms = [f"if [ {if_cond} ]; then", *if_act]
 
     for cond, act in elif_sts:
-        terms.extend([f"elif [ {cond} ]; then", act])
+        terms.extend([f"elif [ {cond} ]; then", *act])
 
     if (len(else_st) > 0):
-        terms.extend(["else", else_st])
+        terms.extend(["else", *else_st])
 
     terms.append("fi")
 
