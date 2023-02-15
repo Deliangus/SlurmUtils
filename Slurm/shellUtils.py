@@ -11,8 +11,9 @@
 
 import json
 from pathlib import Path
-from typing import Dict, List, Union
-
+from typing import Dict, List, Union, Tuple
+import os
+import stat
 
 LICENSE_USAGE = {
     28: 70,
@@ -31,6 +32,7 @@ CONCURRENCY_CORE_USAGE = {
 TIME_CORE_USAGE = {28: 8, 14: 13, 8: 13, 7: 13, 1: 84}
 
 
+
 def make_shell_script(
     script_path:Path,
     content:List[str],
@@ -39,12 +41,18 @@ def make_shell_script(
     license: Dict[str,int] = {},
     cores:int=28,
     account:str='PAS2138',
-    modules: List[str] = [],
+    module_profie: Union[str, None] = None,
+    modules: List[str][str] = [],
     python_env: str = "",
     gpus: int = 0,
     env_vars: Dict = {},
     set_flag: Union[str, None] = "x",
     sbatch_log: Union[Path, None] = None,
+    pre_set_content: List[str] = [],
+    aliases: Dict[str, str] = {},
+    paths: List[str] = [],
+    chmod: bool = True,
+    notifies: List[str] = ["FAIL"],
 ):
     """_summary_
 
@@ -56,6 +64,7 @@ def make_shell_script(
         license (Dict[str,int], optional): The software licences to be used for this job, keys and values are the software name and number of tokens repectively. Defaults to {}.
         cores (int, optional): number of cores to be used for this job. Defaults to 28 (owens).
         account (str, optional): account to charge from for this job. Defaults to 'PAS2138'.
+        module_profie (str,optional): Local module profile files to use for modules.
         modules (List[str], optional): modules to be activated for this job. Defaults to [].
         python_env (str, optional): python environment to be activated for this job. Defaults to "". Example for python -m venv environments: "source .pythonenv/bin/activate"
         gpus (int, optional): number of GPUs for this job. Defaults to 0.
@@ -68,50 +77,74 @@ def make_shell_script(
     env_var_decls = []
     for vname, vval in env_vars.items():
         env_var_decls.extend([f"{vname}={vval}", f"export {vname}"])
+    alias_var_decls = []
+    for vname, vval in aliases.items():
+        alias_var_decls.extend([f"alias {vname}={vval}"])
+
     sbatch_log_file = "output/%j.log" if (sbatch_log is None) else sbatch_log
     shell_script_head = [
         "#!/bin/sh",
         f"#SBATCH --time={hours:02d}:{minutes:02d}:00",
         f"#SBATCH --account={account}",
         f"#SBATCH --output={sbatch_log_file}",
-        "#SBATCH --mail-type=FAIL",
+        f"#SBATCH --mail-type={','.join(notifies)}" if
+        (len(notifies) > 0) else "",
         f"#SBATCH --ntasks={cores}",
         *[f"#SBATCH -L {key}@osc:{val}" for key, val in license.items()],
         f"#SBATCH --gpus-per-node={gpus}" if gpus > 0 else "",
-        # "source ./sh01_sbatch_head.sh",
-        # "if test -z $FEA_MODEL; then",
-        # "\tFEA_MODEL=2D_FEA",
-        # "\texport FEA_MODEL",
-        # "fi",
+        # *["whoami", f"echo $SHELL", "w", "tty", "ps"],
         *env_var_decls,
-        # "if test -z $OBS_TYPE; then",
-        # f"\tOBS_TYPE={obs_type}",
-        # "\texport OBS_TYPE",
-        # "fi",
+        *alias_var_decls,
+        *[f"PATH=$PATH:{':'.join(paths)}", f"export PATH"],
+        "" if module_profie is None else f"module use {module_profie}",
         *[f"module load {key}" for key in modules],
-        # "module load miniconda3",
-        # "module load cuda/11.2.2",
-        # "module load project/project/cres",
-        # "module load abaqus/2021",
         f"source activate {python_env}" if python_env != "" else "",
-        # "source activate urlfea",
-        # "conda env list",
-        # "source ./sh01_copy_code.sh",
-        # f"cp $0 \"$OUTPUT_DIR/{script_path.name}\"",
-        # "cd \"$OUTPUT_DIR\" || exit",
+        *pre_set_content,
         "" if set_flag is None else f"set -{set_flag}",
     ]
     shell_script_tail = [
-        "mv \"$SLURM_SUBMIT_DIR/output/$SLURM_JOB_ID.log\" \"$OUTPUT_DIR/sbatch.log\"",
+        "mv \"$SLURM_SUBMIT_DIR/output/$SLURM_JOB_ID.log\" \"$OUTPUT_DIR/sbatch.log\""
+        if sbatch_log is None else "",
     ]
 
     with open(script_path, 'w') as fout:
         fout.write("\n".join(shell_script_head + content + shell_script_tail))
+    if (chmod):
+        # os.system(f"chmod {chmod} {script_path}")
+        os.chmod(script_path, stat.S_IRWXU)
 
 
-def make_command(head, params_dict: Dict, stdout_redirect: str = ""):
+def make_command(
+    head,
+    params1_dict: Dict = {},
+    params2_dict: Dict = {},
+    stdout_redirect: str = "",
+    connection="=",
+):
     command = [
-        head, *[f"--{key}={val}" for key, val in params_dict.items()],
-        f">> {stdout_redirect}" if len(stdout_redirect) > 0 else ""
+        head,
+        *[f"-{key}{connection}{val}" for key, val in params1_dict.items()],
+        *[f"--{key}{connection}{val}" for key, val in params2_dict.items()],
+        f">> {stdout_redirect}" if len(stdout_redirect) > 0 else "",
     ]
     return " ".join(command)
+
+
+def make_if_statement(
+    if_st: Tuple[(str, List[str])],
+    elif_sts: List[Tuple[(str, List[str])]] = [],
+    else_st: List[str] = [],
+):
+
+    if_cond, if_act = if_st
+    terms = [f"if [ {if_cond} ]; then", *if_act]
+
+    for cond, act in elif_sts:
+        terms.extend([f"elif [ {cond} ]; then", *act])
+
+    if (len(else_st) > 0):
+        terms.extend(["else", *else_st])
+
+    terms.append("fi")
+
+    return terms

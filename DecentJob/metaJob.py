@@ -18,7 +18,7 @@ def find_job_by_params(
     condition_dict: Dict,
     df: pd.DataFrame,
     exception: List[str] = [],
-    exact=False,
+    is_exact: bool = False,
 ):
 
     result, quest = query_dataframe(
@@ -28,16 +28,19 @@ def find_job_by_params(
         }, df)
     if (len(result) == 0):
         return {}
-    
-    if(exact):
+
+    if (is_exact):
         assert len(result) == 1, f"Query return {result} on quest {quest}"
 
         result = result.to_dict(orient="index")
         for key, val in result.items():
-            result[key]["Case"] = key
+            result[key]["Index"] = key
 
-        case_dict: Dict = result[list(result.keys())[0]]
-    return result
+        result_dict: Dict = result[list(result.keys())[0]]
+    else:
+        result_dict = result.to_dict(orient="index")
+
+    return result_dict
 
 
 def migrate_static(new_job_df: pd.DataFrame, static_dir: Path):
@@ -66,15 +69,19 @@ def migrate_static(new_job_df: pd.DataFrame, static_dir: Path):
             with open(dir_path / "case.json", 'w') as fout:
                 json.dump(dir_dict, fout)
 
-        new_job_dict = find_job_by_params(dir_dict, new_job_df)
+        new_job_dict = find_job_by_params(
+            dir_dict,
+            new_job_df,
+            is_exact=True,
+        )
         if (len(new_job_dict) == 0):
             dir_path.rename(
                 dir_path.parent /
                 f"{dir_path.name}_empty".replace("_empty_empty", "_empty"))
         else:
-            dir_path.rename(dir_path.parent / f"{new_job_dict['Case']}_ren")
+            dir_path.rename(dir_path.parent / f"{new_job_dict['Index']}_ren")
             print(
-                f"Migrating {dir_path} -> {dir_path.parent/new_job_dict['Case']}"
+                f"Migrating {dir_path} -> {dir_path.parent/new_job_dict['Index']}"
             )
 
     for dir_path in static_dir.glob("*_ren"):
@@ -101,4 +108,3 @@ def query_dataframe(condition_dict: Dict, df: pd.DataFrame):
     result = df.query(quest)
 
     return result, quest
-
