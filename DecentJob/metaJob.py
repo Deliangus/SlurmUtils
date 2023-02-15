@@ -12,11 +12,13 @@
 import json
 from typing import Dict, List, Union
 import pandas as pd
+from pathlib import Path
 
 def find_job_by_params(
     condition_dict: Dict,
     df: pd.DataFrame,
     exception: List[str] = [],
+    exact=False,
 ):
 
     result, quest = query_dataframe(
@@ -24,18 +26,18 @@ def find_job_by_params(
             key: val
             for key, val in condition_dict.items() if key not in exception
         }, df)
-
-    assert len(result) <= 1, f"Query return {result} on quest {quest}"
-
     if (len(result) == 0):
         return {}
+    
+    if(exact):
+        assert len(result) == 1, f"Query return {result} on quest {quest}"
 
-    result = result.to_dict(orient="index")
-    for key, val in result.items():
-        result[key]["Case"] = key
+        result = result.to_dict(orient="index")
+        for key, val in result.items():
+            result[key]["Case"] = key
 
-    case_dict: Dict = result[list(result.keys())[0]]
-    return case_dict
+        case_dict: Dict = result[list(result.keys())[0]]
+    return result
 
 
 def migrate_static(new_job_df: pd.DataFrame, static_dir: Path):
