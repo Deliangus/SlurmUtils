@@ -78,7 +78,7 @@ def make_shell_script(
         *[f"PATH=$PATH:{':'.join(paths)}", f"export PATH"],
         "" if module_profie is None else f"module use {module_profie}",
         *[f"module load {key}" for key in modules],
-        f"source activate {python_env}" if python_env != "" else "",
+        f"source {python_env}" if python_env != "" else "",
         *pre_set_content,
         "" if set_flag is None else f"set -{set_flag}",
     ]
