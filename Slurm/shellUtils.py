@@ -32,16 +32,17 @@ CONCURRENCY_CORE_USAGE = {
 TIME_CORE_USAGE = {28: 8, 14: 13, 8: 13, 7: 13, 1: 84}
 
 
+
 def make_shell_script(
-    script_path,
-    content,
+    script_path:Path,
+    content:List[str],
     hours=2,
     minutes=0,
-    license: dict = {},
-    cores=28,
-    account='PAS2138',
+    license: Dict[str,int] = {},
+    cores:int=28,
+    account:str='PAS2138',
     module_profie: Union[str, None] = None,
-    modules: List[str] = [],
+    modules: List[str][str] = [],
     python_env: str = "",
     gpus: int = 0,
     env_vars: Dict = {},
@@ -53,6 +54,25 @@ def make_shell_script(
     chmod: bool = True,
     notifies: List[str] = ["FAIL"],
 ):
+    """_summary_
+
+    Args:
+        script_path (Path): The path of new shell script to be generated
+        content (List[str]): The content of shell script, in a list of strings.
+        hours (int, optional): Allown hours to run for this job. Defaults to 2.
+        minutes (int, optional): Allown hours to run for this job. Defaults to 0.
+        license (Dict[str,int], optional): The software licences to be used for this job, keys and values are the software name and number of tokens repectively. Defaults to {}.
+        cores (int, optional): number of cores to be used for this job. Defaults to 28 (owens).
+        account (str, optional): account to charge from for this job. Defaults to 'PAS2138'.
+        module_profie (str,optional): Local module profile files to use for modules.
+        modules (List[str], optional): modules to be activated for this job. Defaults to [].
+        python_env (str, optional): python environment to be activated for this job. Defaults to "". Example for python -m venv environments: "source .pythonenv/bin/activate"
+        gpus (int, optional): number of GPUs for this job. Defaults to 0.
+        env_vars (Dict, optional): Diction of environment variable, name and content. Defaults to {}.
+        set_flag (Union[str, None], optional): flat for "set" command. Defaults to "x".
+        sbatch_log (Union[Path, None], optional): the log file for this job. Defaults to None.
+    """
+
     cores = max(cores, 8)
     env_var_decls = []
     for vname, vval in env_vars.items():

@@ -14,7 +14,6 @@ from typing import Dict, List, Union
 import pandas as pd
 from pathlib import Path
 
-
 def find_job_by_params(
     condition_dict: Dict,
     df: pd.DataFrame,
@@ -27,7 +26,6 @@ def find_job_by_params(
             key: val
             for key, val in condition_dict.items() if key not in exception
         }, df)
-
     if (len(result) == 0):
         return {}
 
