@@ -42,7 +42,7 @@ def make_shell_script(
     cores:int=28,
     account:str='PAS2138',
     module_profie: Union[str, None] = None,
-    modules: List[str][str] = [],
+    modules: List[str] = [],
     python_env: str = "",
     gpus: int = 0,
     env_vars: Dict = {},
