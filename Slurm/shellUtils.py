@@ -32,15 +32,14 @@ CONCURRENCY_CORE_USAGE = {
 TIME_CORE_USAGE = {28: 8, 14: 13, 8: 13, 7: 13, 1: 84}
 
 
-
 def make_shell_script(
-    script_path:Path,
-    content:List[str],
+    script_path: Path,
+    content: List[str],
     hours=2,
     minutes=0,
-    license: Dict[str,int] = {},
-    cores:int=28,
-    account:str='PAS2138',
+    license: Dict[str, int] = {},
+    cores: int = 28,
+    account: str = 'PAS2138',
     module_profie: Union[str, None] = None,
     modules: List[str] = [],
     python_env: str = "",
@@ -53,6 +52,7 @@ def make_shell_script(
     paths: List[str] = [],
     chmod: bool = True,
     notifies: List[str] = ["FAIL"],
+    jobname: str = "",
 ):
     """_summary_
 
@@ -73,7 +73,7 @@ def make_shell_script(
         sbatch_log (Union[Path, None], optional): the log file for this job. Defaults to None.
     """
 
-    cores = max(cores, 8)
+    # cores = max(cores, 8)
     env_var_decls = []
     for vname, vval in env_vars.items():
         env_var_decls.extend([f"{vname}={vval}", f"export {vname}"])
@@ -84,6 +84,7 @@ def make_shell_script(
     sbatch_log_file = "output/%j.log" if (sbatch_log is None) else sbatch_log
     shell_script_head = [
         "#!/bin/sh",
+        f"#SBATCH --job-name={jobname}" if len(jobname) > 0 else "",
         f"#SBATCH --time={hours:02d}:{minutes:02d}:00",
         f"#SBATCH --account={account}",
         f"#SBATCH --output={sbatch_log_file}",
