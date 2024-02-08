@@ -32,15 +32,14 @@ CONCURRENCY_CORE_USAGE = {
 TIME_CORE_USAGE = {28: 8, 14: 13, 8: 13, 7: 13, 1: 84}
 
 
-
 def make_shell_script(
-    script_path:Path,
-    content:List[str],
+    script_path: Path,
+    content: List[str],
     hours=2,
     minutes=0,
-    license: Dict[str,int] = {},
-    cores:int=28,
-    account:str='PAS2138',
+    license: Dict[str, int] = {},
+    cores: int = 28,
+    account: str = 'PAS2138',
     module_profie: Union[str, None] = None,
     modules: List[str] = [],
     python_env: str = "",
@@ -53,6 +52,8 @@ def make_shell_script(
     paths: List[str] = [],
     chmod: bool = True,
     notifies: List[str] = ["FAIL"],
+    memory: int = 0,
+    sbatch_args: Dict = {},
 ):
     """_summary_
 
@@ -73,7 +74,7 @@ def make_shell_script(
         sbatch_log (Union[Path, None], optional): the log file for this job. Defaults to None.
     """
 
-    cores = max(cores, 8)
+    # cores = max(cores, 8)
     env_var_decls = []
     for vname, vval in env_vars.items():
         env_var_decls.extend([f"{vname}={vval}", f"export {vname}"])
@@ -89,15 +90,22 @@ def make_shell_script(
         f"#SBATCH --output={sbatch_log_file}",
         f"#SBATCH --mail-type={','.join(notifies)}" if
         (len(notifies) > 0) else "",
-        f"#SBATCH --ntasks={cores}",
+        f"#SBATCH --ntasks-per-node={cores}",
+        f"#SBATCH --mem-per-cpu={memory}G" if memory > 0 else "",
         *[f"#SBATCH -L {key}@osc:{val}" for key, val in license.items()],
-        f"#SBATCH --gpus-per-node={gpus}" if gpus > 0 else "",
+        f"#SBATCH --gres=gpu:{gpus}" if gpus > 0 else "",
+        *[f"#SBATCH --{key}={val}" for key, val in sbatch_args.items()],
         # *["whoami", f"echo $SHELL", "w", "tty", "ps"],
         *env_var_decls,
         *alias_var_decls,
         *[f"PATH=$PATH:{':'.join(paths)}", f"export PATH"],
         "" if module_profie is None else f"module use {module_profie}",
         *[f"module load {key}" for key in modules],
+        "HOSTNAME=$HOSTNAME",
+        *make_if_statement(
+            ["${HOSTNAME:0:1} == \"p\"", ["PYTHON_ENV=.pitzerenv"]],
+            else_st=["PYTHON_ENV=.owensenv"],
+        ),
         f"source {python_env}" if python_env != "" else "",
         *pre_set_content,
         "" if set_flag is None else f"set -{set_flag}",
@@ -121,13 +129,26 @@ def make_command(
     stdout_redirect: str = "",
     connection="=",
 ):
+    for key, val in list(params1_dict.items()):
+        if (type(val) == bool):
+            if (val):
+                params1_dict[key] = ""
+            else:
+                del params1_dict[key]
+
+    for key, val in list(params2_dict.items()):
+        if (type(val) == bool):
+            if (val):
+                params2_dict[key] = ""
+            else:
+                del params2_dict[key]
     command = [
         head,
         *[f"-{key}{connection}{val}" for key, val in params1_dict.items()],
         *[f"--{key}{connection}{val}" for key, val in params2_dict.items()],
         f">> {stdout_redirect}" if len(stdout_redirect) > 0 else "",
     ]
-    return " ".join(command)
+    return " ".join(command).replace("  ", " ").strip()
 
 
 def make_if_statement(
