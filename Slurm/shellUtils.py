@@ -54,6 +54,7 @@ def make_shell_script(
     notifies: List[str] = ["FAIL"],
     memory: int = 0,
     sbatch_args: Dict = {},
+    jobname: str = "",
 ):
     """_summary_
 
@@ -85,6 +86,7 @@ def make_shell_script(
     sbatch_log_file = "output/%j.log" if (sbatch_log is None) else sbatch_log
     shell_script_head = [
         "#!/bin/sh",
+        f"#SBATCH --job-name={jobname}" if len(jobname) > 0 else "",
         f"#SBATCH --time={hours:02d}:{minutes:02d}:00",
         f"#SBATCH --account={account}",
         f"#SBATCH --output={sbatch_log_file}",
