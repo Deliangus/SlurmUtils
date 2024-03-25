@@ -90,7 +90,8 @@ def make_shell_script(
         f"#SBATCH --output={sbatch_log_file}",
         f"#SBATCH --mail-type={','.join(notifies)}" if
         (len(notifies) > 0) else "",
-        f"#SBATCH --ntasks={cores}",
+        f"#SBATCH --ntasks-per-node={cores}",
+        # f"#SBATCH --ntasks={cores}",
         *[f"#SBATCH -L {key}@osc:{val}" for key, val in license.items()],
         f"#SBATCH --gpus-per-node={gpus}" if gpus > 0 else "",
         # *["whoami", f"echo $SHELL", "w", "tty", "ps"],
@@ -107,6 +108,8 @@ def make_shell_script(
         "mv \"$SLURM_SUBMIT_DIR/output/$SLURM_JOB_ID.log\" \"$OUTPUT_DIR/sbatch.log\""
         if sbatch_log is None else "",
     ]
+
+    # print(content)
 
     with open(script_path, 'w') as fout:
         fout.write("\n".join(shell_script_head + content + shell_script_tail))
