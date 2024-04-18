@@ -93,7 +93,7 @@ def make_shell_script(
         f"#SBATCH --mail-type={','.join(notifies)}" if
         (len(notifies) > 0) else "",
         f"#SBATCH --cpus-per-task={cores}",
-        f"#SBATCH --mem-per-cpu={memory}G" if memory > 0 else "",
+        f"#SBATCH --mem={memory}G" if memory > 0 else "",
         *[f"#SBATCH -L {key}@osc:{val}" for key, val in license.items()],
         f"#SBATCH --gres=gpu:{gpus}" if gpus > 0 else "",
         *[f"#SBATCH --{key}={val}" for key, val in sbatch_args.items()],
