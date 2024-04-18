@@ -117,6 +117,8 @@ def make_shell_script(
         if sbatch_log is None else "",
     ]
 
+    # print(content)
+
     with open(script_path, 'w') as fout:
         fout.write("\n".join(shell_script_head + content + shell_script_tail))
     if (chmod):
