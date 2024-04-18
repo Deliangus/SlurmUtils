@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "slurmutils"
-version = "0.1.1"
+version = "0.1.2"
 description = ""
 authors = ["Yuxiang Luo <luo.929@osu.edu>"]
 license = "GPL2"
