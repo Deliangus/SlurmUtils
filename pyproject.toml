@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "slurmutils"
+version = "0.1.0"
+description = ""
+authors = ["Yuxiang Luo <luo.929@osu.edu>"]
+license = "GPL2"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.11"
+pandas = "^2.2.2"
+
+
+[tool.poetry.group.dev.dependencies]
+build = "^1.2.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
