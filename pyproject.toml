@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "slurmutils"
-version = "0.1.5"
+version = "0.1.6"
 description = ""
 authors = ["Yuxiang Luo <luo.929@osu.edu>"]
 license = "GPL2"
@@ -8,14 +8,12 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.8"
-pandas =[
-    {version="^2.0.3",python="3.8"},
-    {version="^2.2.2",python="3.9"}
-]
+pandas = "^1.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
 build = "^1.2.1"
+yapf = "^0.40.2"
 
 [build-system]
 requires = ["poetry-core"]

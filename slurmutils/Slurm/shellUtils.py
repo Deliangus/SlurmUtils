@@ -104,10 +104,10 @@ def make_shell_script(
         "" if module_profie is None else f"module use {module_profie}",
         *[f"module load {key}" for key in modules],
         "HOSTNAME=$HOSTNAME",
-        *make_if_statement(
-            ["${HOSTNAME:0:1} == \"p\"", ["PYTHON_ENV=.pitzerenv"]],
-            else_st=["PYTHON_ENV=.owensenv"],
-        ),
+        # *make_if_statement(
+        #     ["${HOSTNAME:0:1} == \"p\"", ["PYTHON_ENV=.pitzerenv"]],
+        #     else_st=["PYTHON_ENV=.owensenv"],
+        # ),
         f"source {python_env}" if python_env != "" else "",
         *pre_set_content,
         "" if set_flag is None else f"set -{set_flag}",
