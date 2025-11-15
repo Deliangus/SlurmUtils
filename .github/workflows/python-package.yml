@@ -1,37 +1,90 @@
-# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
-name: Python package
+name: Publish to PyPI
 
 on:
   push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
+    tags:
+      - "v*.*.*"
 
 jobs:
-  build:
+  local-deps-check:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.9", "3.8"]
 
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
+          python-version: "3.12"
+
+      - name: Install Poetry
         run: |
           python -m pip install --upgrade pip
-          python -m pip install poetry yapf
-      - name: Analysing the code with yapf
+          pip install poetry
+
+      - name: Install dependencies with Poetry
         run: |
-          yapf -mpi $(git ls-files '*.py')
-      - name: build with poetry
+
+          poetry source add coredumped --priority supplemental https://pypi.coredumped.tech
+          poetry config http-basic.coredumped ${{ secrets.PYPI_COREDUMPED_USER }} ${{ secrets.PYPI_COREDUMPED_PASSWORD }}
+          poetry install
+
+  validate-version:
+    needs: local-deps-check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract tag version
+        id: tag
         run: |
-          poetry config repositories.temp "${{secrets.PYPI_SERVER_ADDRESS}}"
-          poetry config http-basic.temp ${{secrets.PYPI_SERVER_USERNAME}} ${{secrets.PYPI_SERVER_PASSWORD}}
-          poetry publish --build --repository temp
+          echo "TAG_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Extract pyproject.toml version
+        id: pyproject
+        run: |
+          VERSION=$(grep '^version =' pyproject.toml | head -1 | sed -E "s/version = \"([^\"]+)\"/\1/")
+          echo "PYPROJECT_VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Compare versions
+        run: |
+          if [ "${{ steps.tag.outputs.TAG_VERSION }}" != "${{ steps.pyproject.outputs.PYPROJECT_VERSION }}" ]; then
+            echo "Tag version (${{
+              steps.tag.outputs.TAG_VERSION }}) does not match pyproject.toml version (${{
+              steps.pyproject.outputs.PYPROJECT_VERSION }})"
+            exit 1
+          fi
+
+    outputs:
+      pyproject_version: ${{ steps.pyproject.outputs.PYPROJECT_VERSION }}
+
+  publish:
+    needs: validate-version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+
+      - name: Configure Poetry for PyPI
+        run: |
+          poetry source add coredumped --priority supplemental https://pypi.coredumped.tech
+          poetry config http-basic.coredumped ${{ secrets.PYPI_COREDUMPED_USER }} ${{ secrets.PYPI_COREDUMPED_PASSWORD }}
+          poetry install
+
+      - name: Publish to PyPI
+        run: |
+          poetry build --format sdist
+          poetry publish --repository coredumped -v

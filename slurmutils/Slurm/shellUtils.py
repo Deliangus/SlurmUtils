@@ -33,13 +33,14 @@ TIME_CORE_USAGE = {28: 8, 14: 13, 8: 13, 7: 13, 1: 84}
 
 
 def make_shell_script(
+    account: str,
     script_path: Path,
     content: List[str],
     hours=2,
     minutes=0,
+    seconds=0,
     license: Dict[str, int] = {},
     cores: int = 28,
-    account: str = 'PAS2138',
     module_profie: Union[str, None] = None,
     modules: List[str] = [],
     python_env: str = "",
@@ -55,6 +56,7 @@ def make_shell_script(
     memory: int = 0,
     sbatch_args: Dict = {},
     jobname: str = "",
+    interactive: bool = False,
 ):
     """_summary_
 
@@ -83,11 +85,15 @@ def make_shell_script(
     for vname, vval in aliases.items():
         alias_var_decls.extend([f"alias {vname}={vval}"])
 
+    path_export = [f"PATH=$PATH:{':'.join(paths)}", f"export PATH"
+                   ] if len(paths) > 0 else []
+
     sbatch_log_file = "output/%j.log" if (sbatch_log is None) else sbatch_log
+
     shell_script_head = [
-        "#!/bin/sh",
+        "#!/bin/bash" if not interactive else "#!/bin/bash -i",
         f"#SBATCH --job-name={jobname}" if len(jobname) > 0 else "",
-        f"#SBATCH --time={hours:02d}:{minutes:02d}:00",
+        f"#SBATCH --time={hours:02d}:{minutes:02d}:{seconds:02d}",
         f"#SBATCH --account={account}",
         f"#SBATCH --output={sbatch_log_file}",
         f"#SBATCH --mail-type={','.join(notifies)}" if
@@ -96,20 +102,20 @@ def make_shell_script(
         f"#SBATCH --mem={memory}G" if memory > 0 else "",
         *[f"#SBATCH -L {key}@osc:{val}" for key, val in license.items()],
         f"#SBATCH --gres=gpu:{gpus}" if gpus > 0 else "",
-        *[f"#SBATCH --{key}={val}" for key, val in sbatch_args.items()],
+        *[
+            f"#SBATCH --{key}={val}"
+            if not isinstance(val, bool) else f"#SBATCH --{key}"
+            for key, val in sbatch_args.items()
+        ],
         # *["whoami", f"echo $SHELL", "w", "tty", "ps"],
+        # *init_bashrc,
         *env_var_decls,
         *alias_var_decls,
-        *[f"PATH=$PATH:{':'.join(paths)}", f"export PATH"],
+        *path_export,
         "" if module_profie is None else f"module use {module_profie}",
         *[f"module load {key}" for key in modules],
-        "HOSTNAME=$HOSTNAME",
-        # *make_if_statement(
-        #     ["${HOSTNAME:0:1} == \"p\"", ["PYTHON_ENV=.pitzerenv"]],
-        #     else_st=["PYTHON_ENV=.owensenv"],
-        # ),
-        f"source {python_env}" if python_env != "" else "",
         *pre_set_content,
+        f"source \"{python_env}\"" if python_env != "" else "",
         "" if set_flag is None else f"set -{set_flag}",
     ]
     shell_script_tail = [
@@ -128,28 +134,36 @@ def make_shell_script(
 
 def make_command(
     head,
+    params: List[str] = [],
     params1_dict: Dict = {},
     params2_dict: Dict = {},
     stdout_redirect: str = "",
     connection="=",
 ):
     for key, val in list(params1_dict.items()):
-        if (type(val) == bool):
+        if (isinstance(val, bool)):
             if (val):
                 params1_dict[key] = ""
             else:
                 del params1_dict[key]
+        elif (isinstance(val, str)):
+            if (len(val) == 0):
+                del params1_dict[key]
 
     for key, val in list(params2_dict.items()):
-        if (type(val) == bool):
+        if (isinstance(val, bool)):
             if (val):
                 params2_dict[key] = ""
             else:
+                del params2_dict[key]
+        elif (isinstance(val, str)):
+            if (len(val) == 0):
                 del params2_dict[key]
     command = [
         head,
         *[f"-{key}{connection}{val}" for key, val in params1_dict.items()],
         *[f"--{key}{connection}{val}" for key, val in params2_dict.items()],
+        *params,
         f">> {stdout_redirect}" if len(stdout_redirect) > 0 else "",
     ]
     return " ".join(command).replace("  ", " ").strip()
